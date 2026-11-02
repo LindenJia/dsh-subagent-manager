@@ -1,0 +1,51 @@
+{
+  "name": "@local/dsh-subagent-manager",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Manage a DSH session's subagents: archive, permanently delete, and set the concurrent subagent limit.",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "LICENSE"
+  ],
+  "icon": "icon.svg",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-locale"
+      ]
+    }
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alexjia812/dsh-subagent-manager.git"
+  },
+  "homepage": "https://github.com/alexjia812/dsh-subagent-manager#readme",
+  "bugs": {
+    "url": "https://github.com/alexjia812/dsh-subagent-manager/issues"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "subagent",
+    "cordis"
+  ]
+}

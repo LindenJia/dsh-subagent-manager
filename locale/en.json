@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Subagent Manager",
+    "description": "Archive or permanently delete subagents and set the concurrent subagent limit."
+  }
+}
