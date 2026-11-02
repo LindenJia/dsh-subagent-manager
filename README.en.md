@@ -104,7 +104,7 @@ This entry shares the same Host routes, permission rules, and tombstone cleanup 
 ### From GitHub
 
 ```bash
-git clone https://github.com/alexjia812/dsh-subagent-manager.git
+git clone https://github.com/LindenJia/dsh-subagent-manager.git
 ```
 
 Then ask an agent to install the cloned directory through `plugin_manager`:
@@ -237,7 +237,7 @@ Verification performed:
 
 ## Contributing
 
-Use [Issues](https://github.com/alexjia812/dsh-subagent-manager/issues) for bug reports and suggestions. Please include:
+Use [Issues](https://github.com/LindenJia/dsh-subagent-manager/issues) for bug reports and suggestions. Please include:
 
 - DSH version, operating system, and profile name;
 - install method (the `install_bundle` directory or version);

@@ -104,7 +104,7 @@ DSH 自带的子智能体目录聚焦当前会话；当子智能体分散在多�
 ### 从 GitHub 安装
 
 ```bash
-git clone https://github.com/alexjia812/dsh-subagent-manager.git
+git clone https://github.com/LindenJia/dsh-subagent-manager.git
 ```
 
 推荐把克隆后的绝对路径交给 Agent，用 `plugin_manager` 的 `install_bundle` 安装：
@@ -237,7 +237,7 @@ npm pack --dry-run --json
 
 ## 贡献
 
-欢迎通过 [Issues](https://github.com/alexjia812/dsh-subagent-manager/issues) 报告问题和提出建议。提交问题时请附上：
+欢迎通过 [Issues](https://github.com/LindenJia/dsh-subagent-manager/issues) 报告问题和提出建议。提交问题时请附上：
 
 - DSH 版本、操作系统和 profile 名称；
 - 安装方式（`install_bundle` 的目录 / 版本）；

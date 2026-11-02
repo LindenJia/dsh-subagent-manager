@@ -36,11 +36,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/alexjia812/dsh-subagent-manager.git"
+    "url": "git+https://github.com/LindenJia/dsh-subagent-manager.git"
   },
-  "homepage": "https://github.com/alexjia812/dsh-subagent-manager#readme",
+  "homepage": "https://github.com/LindenJia/dsh-subagent-manager#readme",
   "bugs": {
-    "url": "https://github.com/alexjia812/dsh-subagent-manager/issues"
+    "url": "https://github.com/LindenJia/dsh-subagent-manager/issues"
   },
   "keywords": [
     "deepseek-harness",
