@@ -560,7 +560,7 @@ export function apply(ctx, config = {}) {
   /**
    * Build the browser state payload.
    *
-   * @param {{ limit?: number, offset?: number, status?: string, q?: string, fresh?: boolean }} query - paging and filter options.
+   * @param {{ limit?: number, offset?: number, status?: string, q?: string, parent?: string, fresh?: boolean }} query - paging and filter options.
    * @returns {Promise<object>} state payload.
    */
   async function buildState(query = {}) {
@@ -569,6 +569,7 @@ export function apply(ctx, config = {}) {
     const offset = Math.max(0, integerOr(query.offset, 0))
     const status = query.status === 'running' || query.status === 'archived' ? query.status : 'all'
     const q = typeof query.q === 'string' ? query.q.trim().toLowerCase().slice(0, 200) : ''
+    const parent = typeof query.parent === 'string' ? query.parent.trim().slice(0, 200) : ''
     const index = await loadRecords(query.fresh === true)
     const archiveSet = new Set(ctx.workspaceRegistry.archivedSessionIds)
     const liveIds = new Set(ctx.agents.list().map((agent) => agent.id))
@@ -594,7 +595,8 @@ export function apply(ctx, config = {}) {
         formatStatus: row.formatStatus || null,
       }
     })
-    const filtered = mapped.filter((row) => {
+    const scoped = parent ? mapped.filter((row) => row.parentId === parent) : mapped
+    const filtered = scoped.filter((row) => {
       if (status === 'running' && !row.live) return false
       if (status === 'archived' && !row.archived) return false
       if (!q) return true
@@ -616,9 +618,9 @@ export function apply(ctx, config = {}) {
     return {
       ok: true,
       total,
-      allTotal: mapped.length,
-      running: mapped.filter((row) => row.live).length,
-      archived: mapped.filter((row) => row.archived).length,
+      allTotal: scoped.length,
+      running: scoped.filter((row) => row.live).length,
+      archived: scoped.filter((row) => row.archived).length,
       offset: safeOffset,
       limit,
       page: Math.floor(safeOffset / limit),
@@ -923,6 +925,7 @@ export function apply(ctx, config = {}) {
         offset: clampInt(url.searchParams.get('offset'), 0, 0, 1_000_000),
         status: url.searchParams.get('status') || 'all',
         q: url.searchParams.get('q') || '',
+        parent: url.searchParams.get('parent') || '',
         fresh: url.searchParams.get('fresh') === '1',
       }))
     } catch (error) {
@@ -955,6 +958,7 @@ export function apply(ctx, config = {}) {
           offset: clampInt(url.searchParams.get('offset'), 0, 0, 1_000_000),
           status: url.searchParams.get('status') || 'all',
           q: url.searchParams.get('q') || '',
+          parent: url.searchParams.get('parent') || '',
           fresh: url.searchParams.get('fresh') === '1',
         })
         sendNode(res, 200, state)

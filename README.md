@@ -14,7 +14,7 @@
   &nbsp;
   <img src="https://img.shields.io/badge/DSH-0.2.1--rc.5-2f63d8?style=flat-square" alt="DSH">
   &nbsp;
-  <img src="https://img.shields.io/badge/version-1.0.0-2f63d8?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.1.0-2f63d8?style=flat-square" alt="Version">
 </p>
 
 <p align="center">
@@ -50,6 +50,7 @@ DSH 自带的子智能体目录聚焦当前会话；当子智能体分散在多�
 | 批量删除 | 每行复选框、全选本页、已选计数；一次最多 100 个，按委派深度从深到浅执行 |
 | 并发上限 | 读写 `subagent.maxActiveSubagents`（1–256），与 DSH 自带子智能体并发上限是同一项设置 |
 | 父会话计数同步 | 删除后回话主页的“xx 个子智能体”会相应减少，不留下已删除子智能体的计数 |
+| 回话主页直接管理 | 点击回话主页头部的“xx 个子智能体”展开目录，直接归档或删除每个直接子智能体 |
 
 ## 界面与操作
 
@@ -78,6 +79,19 @@ DSH 自带的子智能体目录聚焦当前会话；当子智能体分散在多�
 | 调整并发上限 | 顶部输入 1–256，点“保存” | 写入 DSH 的 `subagent` 配置并立即生效于后续委派 |
 
 > “全选本页”只作用于当前页；跨页勾选会保留，单次最多 100 个。运行中的子智能体复选框是灰的，先归档。
+
+### 回话主页入口
+
+设置页不是唯一入口。回话主页标题旁的“xx 个子智能体”现在会展开同一个子智能体目录：
+
+- 点击某一行打开该子会话；
+- 行内“归档 / 取消归档”直接操作；
+- 行内“删除”会先弹出确认；
+- 运行中或仍有下级的子智能体，删除按钮置灰；
+- 外部任务只显示标签，不能归档或删除；
+- 删除成功后，父会话的计数立即减少。
+
+这个入口和设置页共用同一套 Host 路由、权限规则和墓碑清理，不会出现两套行为。
 
 ## 安装
 
@@ -112,7 +126,7 @@ git clone https://github.com/alexjia812/dsh-subagent-manager.git
 
 ## 使用
 
-1. 打开 **设置 → 子智能体管理器**。页面汇总当前配置方案里所有会话派生的子智能体。
+1. 在回话主页点击标题旁的“xx 个子智能体”，或打开 **设置 → 子智能体管理器**。两处看到的是同一批子智能体。
 2. 用搜索和状态标签缩小范围；分页固定每页 15 条。
 3. 需要保留数据但停止运行时用“归档”；归档可撤销。
 4. 确实不再需要历史时用“删除”；运行中的先归档，仍有下级的先处理下级。
@@ -167,7 +181,7 @@ git clone https://github.com/alexjia812/dsh-subagent-manager.git
 | 部分 | 职责 |
 |---|---|
 | Host `index.js` | 读取 `sessionQuery` / `sessionPersistence` / `workspaceRegistry` / `settings`；提供 `/api/dsh-subagent-manager/state` 与 `/action` 两条路由；执行归档、删除和并发上限写入 |
-| Client `client.js` | 向 `settings.section` 注册页面；负责分页、搜索、勾选、确认弹窗和投影存储更新；只使用 DSH 主题 token，不依赖其他 Client 包 |
+| Client `client.js` | 向 `settings.section` 注册设置页，并以较低优先级在 `conversation.session.header.actions` 接替 `subagent-catalog`；负责分页、搜索、勾选、回话主页目录、确认弹窗和投影存储更新；只使用 DSH 主题 token，不依赖其他 Client 包 |
 | 状态文件 | `deleted-sessions.json` 记录已删除子智能体 ID，供投影过滤和失效目录项清理使用 |
 
 删除后的计数同步分三层：
@@ -181,6 +195,8 @@ git clone https://github.com/alexjia812/dsh-subagent-manager.git
 | 现象 | 处理 |
 |---|---|
 | 设置里没有“子智能体管理器” | 确认 `include:subagent-manager` 为 `active`；刷新页面。若刚安装，确认 bundle 已写入 profile，而不是只执行了 `dsh plugin add` |
+| 回话主页没有“xx 个子智能体” | 当前会话没有直接子智能体，或目录投影尚未加载；先派发一次子智能体再刷新 |
+| 回话主页的目录没有归档/删除按钮 | 刷新页面加载新版 Client；旧版目录是 DSH 自带组件，只有打开和层级展开 |
 | 列表加载失败，提示 `cannot get property "sessions" without inject` | 旧版本缺少 `sessions` 服务声明；更新到当前版本，刷新页面。若仍报错，重载插件或重启 `dsh-web` |
 | 列表一直为空 | 当前 DSH 实例确实还没有子智能体会话；本页管理所有会话派生的子智能体，不是当前会话的聊天记录 |
 | 删除按钮是灰色的 | 子智能体仍在运行，或还有下级子智能体；先归档，或先删除下级 |
@@ -197,7 +213,7 @@ git clone https://github.com/alexjia812/dsh-subagent-manager.git
 | 文件 | 作用 |
 |---|---|
 | `index.js` | Host 半部：状态、归档、删除、批量删除、并发上限、墓碑过滤 |
-| `client.js` | Client 半部：设置页、分页、选择、确认弹窗、投影存储更新 |
+| `client.js` | Client 半部：设置页、回话主页目录、分页、选择、确认弹窗、投影存储更新 |
 | `cordis.patch.yml` | bundle 安装行 |
 | `locale/*.json` | 插件管理器中显示的标题与描述 |
 | `icon.svg` | 插件图标 |
@@ -215,7 +231,8 @@ npm pack --dry-run --json
 - Host 分页（每页 15 条）、状态筛选、跨全部数据搜索、批量删除顺序与 100 条上限，通过含 42 条模拟子会话的冒烟测试。
 - 删除后的父会话目录投影过滤、失效目录项自动补墓碑、墓碑文件持久化，通过模拟 `subagentCatalog` 投影测试。
 - 会话目录解析用本机 120 个真实子智能体会话逐一比对，全部命中。
-- `settings.section` 在运行中的 Web 客户端注册为 `active`。
+- 回话主页目录按父会话过滤的 `/state?parent=` 查询通过模拟测试：根会话只返回直接子会话，嵌套会话只返回自己的下级。
+- `settings.section` 与接替后的 `subagent-catalog` 在运行中的 Web 客户端均为 `active`。
 - 页面最终视觉、暗色主题和窄屏布局仍需在浏览器中刷新后确认。
 
 ## 贡献

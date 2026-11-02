@@ -29,6 +29,24 @@ window.__ModuleLoader__.load({
       'list.total': '{count} total',
       'list.showing': 'Showing the newest {shown}',
       'list.more': 'Show more',
+      'catalog.trigger.one': '1 subagent',
+      'catalog.trigger.other': '{count} subagents',
+      'catalog.running.one': '1 running',
+      'catalog.running.other': '{count} running',
+      'catalog.trigger': '{count} subagents',
+      'catalog.running': '{count} running',
+      'catalog.title': 'Subagents',
+      'catalog.refresh': 'Refresh',
+      'catalog.loading': 'Reading status…',
+      'catalog.external': 'External task',
+      'catalog.mode.continuable': 'Continuable',
+      'catalog.mode.one-shot': 'One-shot',
+      'catalog.mode.unknown': 'Unknown mode',
+      'catalog.archived': 'Archived',
+      'catalog.unarchived': 'Unarchived',
+      'catalog.deleted': 'Deleted',
+      'catalog.openFailed': 'Could not open this subagent session.',
+      'catalog.menuLabel': 'Subagent actions',
       'list.all': 'All',
       'list.running': 'Running',
       'list.archived': 'Archived',
@@ -114,6 +132,24 @@ window.__ModuleLoader__.load({
       'list.total': '共 {count} 个',
       'list.showing': '仅显示最近 {shown} 个',
       'list.more': '显示更多',
+      'catalog.trigger.one': '1 个子智能体',
+      'catalog.trigger.other': '{count} 个子智能体',
+      'catalog.running.one': '1 个运行中',
+      'catalog.running.other': '{count} 个运行中',
+      'catalog.trigger': '{count} 个子智能体',
+      'catalog.running': '{count} 个运行中',
+      'catalog.title': '子智能体',
+      'catalog.refresh': '刷新',
+      'catalog.loading': '读取状态…',
+      'catalog.external': '外部任务',
+      'catalog.mode.continuable': '可继续',
+      'catalog.mode.one-shot': '一次性',
+      'catalog.mode.unknown': '未知类型',
+      'catalog.archived': '已归档',
+      'catalog.unarchived': '已取消归档',
+      'catalog.deleted': '已删除',
+      'catalog.openFailed': '无法打开该子智能体会话。',
+      'catalog.menuLabel': '子智能体操作',
       'list.all': '全部',
       'list.running': '运行中',
       'list.archived': '已归档',
@@ -215,6 +251,36 @@ window.__ModuleLoader__.load({
       '.dsm-pager{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--dsw-alias-border-l1);padding-top:12px}',
       '.dsm-page-info,.dsm-page-size{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}',
       '.dsm-page-actions{display:flex;align-items:center;gap:6px;margin-left:auto;flex-wrap:wrap}',
+      '.dsm-cat-root{position:relative;display:inline-flex;align-items:center}',
+      '.dsm-cat-trigger{display:inline-flex;align-items:center;gap:6px;box-sizing:border-box;height:28px;padding:0 8px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;cursor:pointer;white-space:nowrap}',
+      '.dsm-cat-trigger:hover,.dsm-cat-trigger[data-open=true]{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}',
+      '.dsm-cat-trigger:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}',
+      '.dsm-cat-count{font-weight:500}',
+      '.dsm-cat-running{color:var(--dsw-alias-state-success-primary)}',
+      '.dsm-cat-chevron{font-size:9px;color:var(--dsw-alias-label-secondary)}',
+      '.dsm-cat-menu{position:fixed;z-index:950;display:flex;flex-direction:column;box-sizing:border-box;overflow:auto;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-overlay);padding:8px;box-shadow:0 18px 50px color-mix(in srgb, var(--dsw-alias-bg-base) 65%, transparent)}',
+      '.dsm-cat-head{display:flex;align-items:center;gap:8px;padding:4px 6px 8px;border-bottom:1px solid var(--dsw-alias-border-l1);margin-bottom:4px}',
+      '.dsm-cat-head strong{font-size:13px;font-weight:600;color:var(--dsw-alias-label-primary)}',
+      '.dsm-cat-head-count{font-size:12px;color:var(--dsw-alias-label-secondary)}',
+      '.dsm-cat-head .dsm-btn{margin-left:auto;min-height:24px;height:24px;padding:0 8px;font-size:11px}',
+      '.dsm-cat-row{display:flex;align-items:center;gap:6px;padding:6px;border-radius:8px}',
+      '.dsm-cat-row:hover{background:var(--dsw-alias-bg-layer-1)}',
+      '.dsm-cat-open{display:flex;align-items:center;gap:8px;flex:1;min-width:0;padding:2px;border:0;border-radius:6px;background:transparent;color:inherit;text-align:left;cursor:pointer}',
+      '.dsm-cat-open:disabled{cursor:default;opacity:.75}',
+      '.dsm-cat-open:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}',
+      '.dsm-cat-main{display:flex;flex-direction:column;min-width:0;gap:1px}',
+      '.dsm-cat-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;line-height:18px;color:var(--dsw-alias-label-primary)}',
+      '.dsm-cat-meta{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary)}',
+      '.dsm-cat-actions{display:flex;align-items:center;gap:4px;flex:none}',
+      '.dsm-cat-action{box-sizing:border-box;height:24px;padding:0 7px;border:1px solid var(--dsw-alias-border-l1);border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;cursor:pointer;white-space:nowrap}',
+      '.dsm-cat-action:hover:not(:disabled){background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}',
+      '.dsm-cat-action:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}',
+      '.dsm-cat-action:disabled{opacity:.45;cursor:not-allowed}',
+      '.dsm-cat-action[data-danger=true]{border-color:color-mix(in srgb, var(--dsw-alias-state-error-primary) 55%, var(--dsw-alias-border-l1));color:var(--dsw-alias-state-error-primary)}',
+      '.dsm-cat-feedback{margin:4px 4px 0;padding:6px 8px;border-radius:8px;border:1px solid var(--dsw-alias-border-l1);font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary)}',
+      '.dsm-cat-feedback[data-kind=error]{border-color:color-mix(in srgb, var(--dsw-alias-state-error-primary) 45%, var(--dsw-alias-border-l1));color:var(--dsw-alias-state-error-primary)}',
+      '.dsm-cat-feedback[data-kind=success]{border-color:color-mix(in srgb, var(--dsw-alias-state-success-primary) 45%, var(--dsw-alias-border-l1));color:var(--dsw-alias-state-success-primary)}',
+      '.dsm-cat-empty{padding:14px 8px;color:var(--dsw-alias-label-secondary);font-size:12px;text-align:center}',
       '.dsm-list{display:flex;flex-direction:column}',
       '.dsm-row{display:flex;align-items:flex-start;gap:10px;padding:12px 0;border-top:1px solid var(--dsw-alias-border-l1)}',
       '.dsm-row:first-child{border-top:0}',
@@ -330,6 +396,16 @@ window.__ModuleLoader__.load({
     }
 
     /**
+     * @param {(key: string, params?: object) => string} t - translate.
+     * @param {string} base - key prefix with `.one` / `.other` variants.
+     * @param {number} count - value used for plural selection.
+     * @returns {string} localized count text.
+     */
+    function countText(t, base, count) {
+      return fill(t(base + (count === 1 ? '.one' : '.other')), { count })
+    }
+
+    /**
      * Confirm dialog with Escape and focus handling owned by this plugin.
      *
      * @param {{ title: string, body: string, warning?: string, cancel: string, confirm: string, danger?: boolean, onCancel: () => void, onConfirm: () => void }} props - dialog copy and handlers.
@@ -396,6 +472,376 @@ window.__ModuleLoader__.load({
      *
      * @param {{ t: (key: string, params?: object) => string, hideDeleted?: (parentId?: string, childId?: string) => void }} props - translated copy and catalog-filter hook.
      */
+    /**
+     * Enhanced subagent catalog for the conversation header. It replaces the
+     * shipped catalog action's component in place so the count trigger keeps
+     * its seat while each direct child gains archive and delete actions.
+     *
+     * @param {object} props - Session standard props, catalog actions, translator, and manager hooks.
+     */
+    function CatalogAction(props) {
+      const { sessionId, useSessions, useSessionStatus, t, hideDeleted } = props
+      const isChild = useSessions((state) => state.byId[sessionId]?.origin === 'subagent')
+      const catalog = useSessions((state) => state.projectionsBySession[sessionId]?.values.subagentCatalog)
+      const summaries = useSessions((state) => state.byId)
+      const statuses = useSessionStatus((value) => value)
+      const [open, setOpen] = React.useState(false)
+      const [meta, setMeta] = React.useState({})
+      const [anchor, setAnchor] = React.useState(null)
+      const [loading, setLoading] = React.useState(false)
+      const [error, setError] = React.useState(null)
+      const [feedback, setFeedback] = React.useState(null)
+      const [busy, setBusy] = React.useState('')
+      const [confirm, setConfirm] = React.useState(null)
+      const rootRef = React.useRef(null)
+      const triggerRef = React.useRef(null)
+      const menuRef = React.useRef(null)
+      const metaRequestRef = React.useRef(0)
+      const entries = Array.isArray(catalog) ? catalog : []
+      const idsKey = entries.map((entry) => entry.id).join('|')
+
+      async function loadMeta() {
+        const token = ++metaRequestRef.current
+        setLoading(true)
+        setError(null)
+        try {
+          const body = await requestJson(
+            endpoint('state') + '?limit=1000&parent=' + encodeURIComponent(sessionId),
+          )
+          if (token !== metaRequestRef.current) return
+          const next = {}
+          for (const row of body.subagents || []) next[row.id] = row
+          setMeta(next)
+        } catch (loadError) {
+          if (token === metaRequestRef.current) setError(errorText(loadError, t))
+        } finally {
+          if (token === metaRequestRef.current) setLoading(false)
+        }
+      }
+
+      function measure() {
+        const trigger = triggerRef.current
+        if (!trigger) return
+        const rect = trigger.getBoundingClientRect()
+        const width = Math.min(420, Math.max(220, window.innerWidth - 24))
+        const left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12))
+        const top = rect.bottom + 6
+        const maxHeight = Math.max(140, Math.min(440, window.innerHeight - top - 12))
+        setAnchor({ left, top, width, maxHeight })
+      }
+
+      React.useEffect(() => {
+        if (!open) return undefined
+        loadMeta()
+        return undefined
+      }, [open, idsKey])
+
+      React.useEffect(() => {
+        if (!open) {
+          setAnchor(null)
+          return undefined
+        }
+        measure()
+        window.addEventListener('resize', measure)
+        window.addEventListener('scroll', measure, true)
+        return () => {
+          window.removeEventListener('resize', measure)
+          window.removeEventListener('scroll', measure, true)
+        }
+      }, [open])
+
+      React.useEffect(() => {
+        if (!open) return undefined
+        const onPointerDown = (event) => {
+          if (rootRef.current?.contains(event.target)) return
+          if (menuRef.current?.contains(event.target)) return
+          setOpen(false)
+        }
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape') return
+          setOpen(false)
+          setConfirm(null)
+        }
+        document.addEventListener('mousedown', onPointerDown, true)
+        document.addEventListener('keydown', onKeyDown, true)
+        return () => {
+          document.removeEventListener('mousedown', onPointerDown, true)
+          document.removeEventListener('keydown', onKeyDown, true)
+        }
+      }, [open])
+
+      React.useEffect(() => {
+        if (!feedback || feedback.kind !== 'success') return undefined
+        const timer = setTimeout(() => setFeedback(null), 3000)
+        return () => clearTimeout(timer)
+      }, [feedback])
+
+      React.useEffect(() => {
+        if (entries.length === 0 || isChild) {
+          setOpen(false)
+          setConfirm(null)
+        }
+      }, [entries.length, isChild])
+
+      if (isChild) return null
+      if (entries.length === 0) return null
+
+      function isRunning(entry) {
+        const status = statuses.get(entry.id)
+        const summary = summaries[entry.id]
+        return status?.running === true || summary?.running === true || meta[entry.id]?.live === true
+      }
+
+      function modeLabel(entry) {
+        if (entry.mode === 'continuable') return t('catalog.mode.continuable')
+        if (entry.mode === 'one-shot') return t('catalog.mode.one-shot')
+        if (entry.mode === 'external') return t('catalog.external')
+        return t('catalog.mode.unknown')
+      }
+
+      function titleFor(entry) {
+        const info = meta[entry.id]
+        const summary = summaries[entry.id]
+        return info?.title || entry.label || summary?.displayTitle || summary?.title || shortId(entry.id)
+      }
+
+      function openEntry(entry) {
+        if (entry.mode === 'external') return
+        if (typeof props.openChild !== 'function') {
+          setFeedback({ kind: 'error', text: t('catalog.openFailed') })
+          return
+        }
+        try {
+          props.openChild({ parentSessionId: sessionId, childSessionId: entry.id, mode: entry.mode })
+          setOpen(false)
+        } catch (openError) {
+          setFeedback({ kind: 'error', text: errorText(openError, t) })
+        }
+      }
+
+      async function run(kind, entry) {
+        metaRequestRef.current += 1
+        setLoading(false)
+        setBusy(entry.id + ':' + kind)
+        setFeedback(null)
+        try {
+          const body = await requestJson(endpoint('action'), {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', accept: 'application/json' },
+            body: JSON.stringify({ action: kind, id: entry.id, parentId: sessionId }),
+          })
+          if (kind === 'delete') {
+            if (typeof hideDeleted === 'function') hideDeleted(body?.parentId || sessionId, entry.id)
+            setMeta((current) => {
+              const next = Object.assign({}, current)
+              delete next[entry.id]
+              return next
+            })
+            setFeedback({ kind: 'success', text: t('catalog.deleted') })
+          } else {
+            setMeta((current) => ({
+              ...current,
+              [entry.id]: Object.assign({}, current[entry.id], { archived: kind === 'archive' }),
+            }))
+            setFeedback({
+              kind: 'success',
+              text: t(kind === 'archive' ? 'catalog.archived' : 'catalog.unarchived'),
+            })
+          }
+          if (typeof props.refreshProjection === 'function') {
+            try {
+              props.refreshProjection(sessionId)
+            } catch {
+              // Projection refresh is best effort.
+            }
+          }
+        } catch (actionError) {
+          setFeedback({ kind: 'error', text: errorText(actionError, t) })
+        } finally {
+          setBusy('')
+        }
+      }
+
+      function requestArchive(entry) {
+        if (meta[entry.id]?.archived === true) {
+          run('unarchive', entry)
+          return
+        }
+        if (isRunning(entry)) setConfirm({ kind: 'archive', entry })
+        else run('archive', entry)
+      }
+
+      function requestDelete(entry) {
+        const info = meta[entry.id] || {}
+        if (entry.mode === 'external' || isRunning(entry) || info.hasChildren === true) return
+        setConfirm({ kind: 'delete', entry })
+      }
+
+      function confirmAction() {
+        const target = confirm
+        setConfirm(null)
+        if (target) run(target.kind, target.entry)
+      }
+
+      const runningCount = entries.filter((entry) => isRunning(entry)).length
+      const menu =
+        open && anchor
+          ? h(
+              'div',
+              {
+                ref: menuRef,
+                className: 'dsm-cat-menu',
+                role: 'dialog',
+                'aria-label': t('catalog.menuLabel'),
+                style: { left: anchor.left, top: anchor.top, width: anchor.width, maxHeight: anchor.maxHeight },
+              },
+              h(
+                'div',
+                { className: 'dsm-cat-head' },
+                h('strong', null, t('catalog.title')),
+                h('span', { className: 'dsm-cat-head-count' }, String(entries.length)),
+                h(
+                  'button',
+                  { type: 'button', className: 'dsm-btn', disabled: loading, onClick: loadMeta },
+                  t('catalog.refresh'),
+                ),
+              ),
+              feedback
+                ? h('div', { className: 'dsm-cat-feedback', 'data-kind': feedback.kind, role: 'status' }, feedback.text)
+                : null,
+              error ? h('div', { className: 'dsm-cat-feedback', 'data-kind': 'error', role: 'alert' }, error) : null,
+              loading && Object.keys(meta).length === 0
+                ? h('div', { className: 'dsm-cat-empty' }, t('catalog.loading'))
+                : null,
+              entries.map((entry) => {
+                const info = meta[entry.id] || {}
+                const running = isRunning(entry)
+                const archived = info.archived === true
+                const external = entry.mode === 'external'
+                const children = info.hasChildren === true || (info.childCount || 0) > 0
+                const dotState = running ? 'running' : archived ? 'archived' : 'idle'
+                const title = titleFor(entry)
+                const deleteDisabled = external || running || children || Boolean(busy)
+                const deleteTitle = external
+                  ? t('catalog.external')
+                  : running
+                    ? t('row.deleteRunning')
+                    : children
+                      ? t('row.deleteChildren')
+                      : t('row.delete')
+                const metaParts = external
+                  ? []
+                  : [
+                      modeLabel(entry),
+                      archived ? t('row.archived') : null,
+                      children ? fill(t('row.children'), { count: info.childCount || 1 }) : null,
+                    ].filter(Boolean)
+                return h(
+                  'div',
+                  { className: 'dsm-cat-row', key: entry.id },
+                  h(
+                    'button',
+                    {
+                      type: 'button',
+                      className: 'dsm-cat-open',
+                      disabled: external,
+                      title: external ? t('catalog.external') : title,
+                      onClick: () => openEntry(entry),
+                    },
+                    h('span', { className: 'dsm-dot', 'data-state': dotState, 'aria-hidden': 'true' }),
+                    h(
+                      'span',
+                      { className: 'dsm-cat-main' },
+                      h('span', { className: 'dsm-cat-title' }, title),
+                      metaParts.length > 0 ? h('span', { className: 'dsm-cat-meta' }, metaParts.join(' · ')) : null,
+                    ),
+                  ),
+                  external
+                    ? h('span', { className: 'dsm-badge' }, t('catalog.external'))
+                    : h(
+                        'span',
+                        { className: 'dsm-cat-actions' },
+                        h(
+                          'button',
+                          {
+                            type: 'button',
+                            className: 'dsm-cat-action',
+                            disabled: Boolean(busy),
+                            onClick: () => requestArchive(entry),
+                          },
+                          archived ? t('row.unarchive') : t('row.archive'),
+                        ),
+                        h(
+                          'button',
+                          {
+                            type: 'button',
+                            className: 'dsm-cat-action',
+                            'data-danger': true,
+                            disabled: deleteDisabled,
+                            title: deleteTitle,
+                            onClick: () => requestDelete(entry),
+                          },
+                          t('row.delete'),
+                        ),
+                      ),
+                )
+              }),
+            )
+          : null
+
+      return h(
+        React.Fragment,
+        null,
+        h('style', null, CSS),
+        h(
+          'div',
+          { className: 'dsm-cat-root', ref: rootRef },
+          h(
+            'button',
+            {
+              ref: triggerRef,
+              type: 'button',
+              className: 'dsm-cat-trigger',
+              'data-open': open,
+              'aria-haspopup': 'dialog',
+              'aria-expanded': open,
+              title: t('catalog.menuLabel'),
+              onClick: () => setOpen((value) => !value),
+            },
+            h('span', { className: 'dsm-dot', 'data-state': runningCount > 0 ? 'running' : 'idle', 'aria-hidden': 'true' }),
+            h('span', { className: 'dsm-cat-count' }, countText(t, 'catalog.trigger', entries.length)),
+            runningCount > 0
+              ? h('span', { className: 'dsm-cat-running' }, countText(t, 'catalog.running', runningCount))
+              : null,
+            h('span', { className: 'dsm-cat-chevron', 'aria-hidden': 'true' }, '▾'),
+          ),
+          menu,
+        ),
+        confirm
+          ? h(ConfirmDialog, {
+              title:
+                confirm.kind === 'delete'
+                  ? t('dialog.delete.title')
+                  : t('dialog.archive.title'),
+              body:
+                confirm.kind === 'delete'
+                  ? fill(t('dialog.delete.body'), {
+                      title: titleFor(confirm.entry),
+                    })
+                  : fill(t('dialog.archive.body'), {
+                      title: titleFor(confirm.entry),
+                    }),
+              warning: confirm.kind === 'delete' ? t('dialog.delete.warning') : undefined,
+              cancel: t('dialog.cancel'),
+              confirm: t(confirm.kind === 'delete' ? 'dialog.delete.confirm' : 'dialog.archive.confirm'),
+              danger: confirm.kind === 'delete',
+              onCancel: () => setConfirm(null),
+              onConfirm: confirmAction,
+            })
+          : null,
+      )
+    }
+
     function ManagerPage(props) {
       const t = props.t
       const PAGE_SIZE = 15
@@ -1048,6 +1494,29 @@ window.__ModuleLoader__.load({
           return h(ManagerPage, Object.assign({}, props, { t: pluginCtx.locale.bind(NS), hideDeleted }))
         }
 
+
+        function CatalogEntry(props) {
+          const [, bump] = React.useReducer((value) => value + 1, 0)
+          React.useEffect(() => {
+            const dispose = pluginCtx.on('locale/change', bump)
+            return typeof dispose === 'function' ? dispose : undefined
+          }, [])
+          const t = pluginCtx.locale.bind(NS)
+          let uiWorkspace
+          try {
+            uiWorkspace = pluginCtx.get('uiWorkspace')
+          } catch {
+            uiWorkspace = undefined
+          }
+          const openChild =
+            typeof props.openChild === 'function'
+              ? props.openChild
+              : uiWorkspace && typeof uiWorkspace.openSession === 'function'
+                ? (address) => uiWorkspace.openSession(address)
+                : undefined
+          return h(CatalogAction, Object.assign({}, props, { t, hideDeleted, openChild }))
+        }
+
         pluginCtx.effect(() => pluginCtx.locale.register(NS, 'en', en))
         pluginCtx.effect(() => pluginCtx.locale.register(NS, 'zh', zh))
         pluginCtx.effect(() =>
@@ -1060,6 +1529,20 @@ window.__ModuleLoader__.load({
                 label: () => pluginCtx.locale.bind(NS)('title'),
               },
               ManagerEntry,
+            ),
+          ),
+        )
+        pluginCtx.effect(() =>
+          pluginCtx.slots.inject('conversation.session.header.actions', () =>
+            pluginCtx.slots.register(
+              {
+                name: 'conversation.session.header.actions',
+                id: 'subagent-catalog',
+                order: 10,
+                priority: -1,
+                locale: NS,
+              },
+              CatalogEntry,
             ),
           ),
         )

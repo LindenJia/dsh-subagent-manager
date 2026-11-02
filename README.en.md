@@ -14,7 +14,7 @@
   &nbsp;
   <img src="https://img.shields.io/badge/DSH-0.2.1--rc.5-2f63d8?style=flat-square" alt="DSH">
   &nbsp;
-  <img src="https://img.shields.io/badge/version-1.0.0-2f63d8?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.1.0-2f63d8?style=flat-square" alt="Version">
 </p>
 
 <p align="center">
@@ -50,6 +50,7 @@ DSH's built-in subagent catalog is scoped to the current session. When subagents
 | Batch delete | Per-row checkboxes, select-all on the current page, selection count; up to 100 at a time, deepest first |
 | Concurrency limit | Reads and writes `subagent.maxActiveSubagents` (1–256), the same setting DSH uses for delegation capacity |
 | Parent count sync | After a delete, the “N subagents” count in the parent conversation decreases instead of keeping the deleted child |
+| Manage from the conversation | Click the “N subagents” trigger in the conversation header to open the same catalog and archive or delete each direct child |
 
 ## UI and actions
 
@@ -78,6 +79,19 @@ Open **Settings → Subagent Manager**. The layout is roughly:
 | Change the limit | Enter 1–256 at the top and click **Save** | Writes DSH's `subagent` configuration; applies to later delegations |
 
 > **Select this page** only selects the current page. Selections persist across pages, up to 100 items. Running subagents have disabled checkboxes; archive them first.
+
+### Conversation-header entry
+
+The Settings page is not the only entry point. The “N subagents” trigger beside the conversation title now opens the same direct-child catalog:
+
+- click a row to open that child conversation;
+- use **Archive / Unarchive** in the row;
+- **Delete** asks for confirmation first;
+- delete is disabled while the child is running or still has children;
+- external tasks show a label and cannot be archived or deleted;
+- a successful delete immediately reduces the parent count.
+
+This entry shares the same Host routes, permission rules, and tombstone cleanup as the Settings page.
 
 ## Install
 
@@ -112,7 +126,7 @@ Use `plugin_manager`'s `remove_bundle` action for `@local/dsh-subagent-manager`,
 
 ## Usage
 
-1. Open **Settings → Subagent Manager**. It lists every subagent derived from any session in the active profile.
+1. Click the “N subagents” trigger beside the conversation title, or open **Settings → Subagent Manager**. Both list the same subagents.
 2. Narrow the list with search and status tabs. Pagination is fixed at 15 rows per page.
 3. Use **Archive** when the history should stay but the subagent should stop running and disappear from grouping surfaces.
 4. Use **Delete** only when the history is no longer needed. Archive a running subagent first; delete its children first.
@@ -167,7 +181,7 @@ The concurrency limit is not a plugin-owned field. It is DSH's existing `subagen
 | Part | Responsibility |
 |---|---|
 | Host `index.js` | Reads `sessionQuery` / `sessionPersistence` / `workspaceRegistry` / `settings`; serves `/api/dsh-subagent-manager/state` and `/action`; performs archive, delete, and limit writes |
-| Client `client.js` | Registers the `settings.section` page; owns pagination, search, selection, confirmation dialogs, and the projection-store update; uses only DSH theme tokens and imports no other Client package |
+| Client `client.js` | Registers the `settings.section` page and shadows `subagent-catalog` in `conversation.session.header.actions` at a lower priority; owns pagination, search, selection, the conversation-header catalog, confirmation dialogs, and the projection-store update; uses only DSH theme tokens and imports no other Client package |
 | State file | `deleted-sessions.json` stores deleted subagent IDs for projection filtering and stale-entry cleanup |
 
 Parent-count synchronization has three layers:
@@ -181,6 +195,8 @@ Parent-count synchronization has three layers:
 | Symptom | What to do |
 |---|---|
 | No “Subagent Manager” entry in Settings | Confirm `include:subagent-manager` is `active`; refresh. If it was just installed, confirm the bundle was written to the profile, not only installed with `dsh plugin add` |
+| No “N subagents” trigger in the conversation header | The current session has no direct children, or the catalog projection has not loaded yet; delegate a subagent, then refresh |
+| The header catalog has no archive/delete buttons | Refresh to load the new Client. The old catalog is the shipped DSH component with open and expand only |
 | List fails with `cannot get property "sessions" without inject` | An old build is missing the `sessions` service declaration. Update to the current version and refresh; reload the plugin or restart `dsh-web` if it persists |
 | The list is always empty | This DSH instance has no subagent sessions yet. The page manages subagents from all sessions, not the current conversation's chat history |
 | The Delete button is grey | The subagent is running, or it still has children. Archive it, or delete its children first |
@@ -197,7 +213,7 @@ There is no build step. Main files:
 | File | Purpose |
 |---|---|
 | `index.js` | Host half: state, archive, delete, batch delete, concurrency limit, tombstone filtering |
-| `client.js` | Client half: settings page, pagination, selection, dialogs, projection-store update |
+| `client.js` | Client half: settings page, conversation-header catalog, pagination, selection, dialogs, projection-store update |
 | `cordis.patch.yml` | Bundle installation row |
 | `locale/*.json` | Plugin Manager title and description |
 | `icon.svg` | Plugin icon |
@@ -215,7 +231,8 @@ Verification performed:
 - Host pagination (15 per page), status filtering, cross-corpus search, batch-deletion order, and the 100-item cap, using a 42-row mock corpus.
 - Parent catalog projection filtering after deletion, automatic tombstoning of stale entries, and tombstone-file persistence, using a mocked `subagentCatalog` projection.
 - Session-directory resolution matched all 120 real subagent sessions on the development machine.
-- `settings.section` is registered as `active` in the running Web client.
+- Parent-scoped `/state?parent=` queries verified that a root session returns only direct children and a nested session returns only its own descendants.
+- Both `settings.section` and the shadowed `subagent-catalog` are registered as `active` in the running Web client.
 - Final visuals, dark theme, and narrow-screen layout still need a browser refresh for confirmation.
 
 ## Contributing
