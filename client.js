@@ -533,7 +533,8 @@ window.__ModuleLoader__.load({
       React.useEffect(() => {
         if (!open) return undefined
         loadMeta()
-        return undefined
+        const timer = setInterval(loadMeta, 5000)
+        return () => clearInterval(timer)
       }, [open, idsKey])
 
       React.useEffect(() => {
@@ -1467,8 +1468,15 @@ window.__ModuleLoader__.load({
           if (typeof store.changed === 'function') store.changed('subagentCatalog')
         }
 
-        function hideDeleted(parentId, childId) {
-          if (typeof childId === 'string' && childId.length > 0) deletedChildren.add(childId)
+        function syncDeleted(ids) {
+          let changed = false
+          for (const id of ids) {
+            if (typeof id === 'string' && id.length > 0 && !deletedChildren.has(id)) {
+              deletedChildren.add(id)
+              changed = true
+            }
+          }
+          if (!changed) return
           const sessions = pluginCtx.sessions
           const manager = sessions && sessions.manager
           if (!manager) return
@@ -1477,12 +1485,51 @@ window.__ModuleLoader__.load({
             if (stores && typeof stores.values === 'function') {
               for (const store of stores.values()) patchProjectionStore(store)
             }
+          } catch {
+            // A client-version mismatch leaves the durable Host filter in charge.
+          }
+        }
+
+        function hideDeleted(parentId, childId) {
+          if (typeof childId === 'string' && childId.length > 0) syncDeleted([childId])
+          const sessions = pluginCtx.sessions
+          const manager = sessions && sessions.manager
+          if (!manager) return
+          try {
             if (typeof manager.projectionStore === 'function' && typeof parentId === 'string' && parentId.length > 0) {
               patchProjectionStore(manager.projectionStore(parentId))
             }
           } catch {
             // A client-version mismatch leaves the durable Host filter in charge.
           }
+        }
+
+        let tombstoneFetching = false
+
+        async function syncTombstones() {
+          if (tombstoneFetching) return
+          tombstoneFetching = true
+          try {
+            const response = await fetch(endpoint('tombstones'), {
+              cache: 'no-store',
+              headers: { accept: 'application/json' },
+            })
+            if (!response.ok) return
+            const body = await response.json()
+            if (body && body.ok === true && Array.isArray(body.deleted)) syncDeleted(body.deleted)
+          } catch {
+            // The Host route may not be reachable yet; the next poll retries.
+          } finally {
+            tombstoneFetching = false
+          }
+        }
+
+        if (typeof document !== 'undefined') {
+          void syncTombstones()
+          const tombstoneTimer = setInterval(() => {
+            if (document.visibilityState === 'visible') void syncTombstones()
+          }, 5000)
+          pluginCtx.effect(() => () => clearInterval(tombstoneTimer))
         }
 
         function ManagerEntry(props) {

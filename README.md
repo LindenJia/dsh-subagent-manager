@@ -14,7 +14,7 @@
   &nbsp;
   <img src="https://img.shields.io/badge/DSH-0.2.1--rc.5-2f63d8?style=flat-square" alt="DSH">
   &nbsp;
-  <img src="https://img.shields.io/badge/version-1.1.0-2f63d8?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.2.0-2f63d8?style=flat-square" alt="Version">
 </p>
 
 <p align="center">
@@ -51,6 +51,7 @@ DSH 自带的子智能体目录聚焦当前会话；当子智能体分散在多�
 | 并发上限 | 读写 `subagent.maxActiveSubagents`（1–256），与 DSH 自带子智能体并发上限是同一项设置 |
 | 父会话计数同步 | 删除后回话主页的“xx 个子智能体”会相应减少，不留下已删除子智能体的计数 |
 | 回话主页直接管理 | 点击回话主页头部的“xx 个子智能体”展开目录，直接归档或删除每个直接子智能体 |
+| 根会话模型工具 | 根会话可调用 `manage_subagent` 归档、取消归档或删除自己的后代；子智能体、外部任务和任意会话 id 会被拒绝 |
 
 ## 界面与操作
 
@@ -92,6 +93,20 @@ DSH 自带的子智能体目录聚焦当前会话；当子智能体分散在多�
 - 删除成功后，父会话的计数立即减少。
 
 这个入口和设置页共用同一套 Host 路由、权限规则和墓碑清理，不会出现两套行为。
+
+### 模型入口
+
+根会话还可以直接调用管理工具，不需要打开设置页：
+
+```text
+manage_subagent(agent_id="...", action="archive")
+manage_subagent(agent_id="...", action="unarchive")
+manage_subagent(agent_id="...", action="delete")
+```
+
+先用 `list_agents` 获取 `agent_id`。工具只接受**根会话**，且目标必须是本会话已登记的后代；子智能体调用、外部任务、任意会话 id 都会被拒绝。`delete` 仍要求目标不是运行中/驻留状态且没有下级，否则先 `archive` 或先删除下级。
+
+工具删除会写入墓碑；客户端每 5 秒读取一次 `/tombstones`，把被删 id 从当前投影存储里过滤掉，所以主会话头部的计数会在数秒内减少，不要求刷新页面。
 
 ## 安装
 
@@ -174,14 +189,14 @@ git clone https://github.com/LindenJia/dsh-subagent-manager.git
 - **父会话计数是投影过滤，不改写父日志。** DSH 的父会话日志是追加式的，删除子会话不会重写历史发现项。插件用持久墓碑过滤 `subagentCatalog` 的客户端投影，并即时更新当前页面的投影存储；因此计数会减少，但原始父会话日志仍保留该发现事件。
 - **禁用或卸载插件后，原始目录项会重新可见。** 墓碑过滤只在插件启用时生效；这是为了不破坏 DSH 的日志回放与完整性约束。
 - **失效目录项扫描基于已物化投影。** 启动时扫描父会话的目录投影，把“目录里有、会话已不存在”的条目录入墓碑。极冷、从未打开过的父会话可能不在这次扫描范围内；重新加载插件或重启 Host 会再次扫描。
-- **没有模型工具，也没有外部网络请求。** 删除和归档是用户专属操作，不注册 Agent 可调用的工具；不会上传会话、不读取凭据。HTTP 路由复用 DSH 的 Connection 认证，缺省回退到 `ctx.webServer`。
+- **模型工具只管理本会话后代。** `manage_subagent` 只允许根会话调用，目标必须出现在本会话的 `listDescendants` 目录中；子智能体调用、任意会话 id、外部任务都会被拒绝。`delete` 仍要求目标不驻留且无下级。工具不会上传会话、不读取凭据，也不发起外部网络请求；HTTP 路由复用 DSH 的 Connection 认证，缺省回退到 `ctx.webServer`。
 
 ## 工作原理
 
 | 部分 | 职责 |
 |---|---|
-| Host `index.js` | 读取 `sessionQuery` / `sessionPersistence` / `workspaceRegistry` / `settings`；提供 `/api/dsh-subagent-manager/state` 与 `/action` 两条路由；执行归档、删除和并发上限写入 |
-| Client `client.js` | 向 `settings.section` 注册设置页，并以较低优先级在 `conversation.session.header.actions` 接替 `subagent-catalog`；负责分页、搜索、勾选、回话主页目录、确认弹窗和投影存储更新；只使用 DSH 主题 token，不依赖其他 Client 包 |
+| Host `index.js` | 读取 `sessionQuery` / `sessionPersistence` / `workspaceRegistry` / `settings`；注册 `manage_subagent` 工具；提供 `/state`、`/action`、`/tombstones` 三条路由；执行归档、删除和并发上限写入 |
+| Client `client.js` | 向 `settings.section` 注册设置页，并以较低优先级在 `conversation.session.header.actions` 接替 `subagent-catalog`；负责分页、搜索、勾选、回话主页目录、确认弹窗、投影存储更新和墓碑轮询；只使用 DSH 主题 token，不依赖其他 Client 包 |
 | 状态文件 | `deleted-sessions.json` 记录已删除子智能体 ID，供投影过滤和失效目录项清理使用 |
 
 删除后的计数同步分三层：
@@ -189,6 +204,7 @@ git clone https://github.com/LindenJia/dsh-subagent-manager.git
 1. Host 删除子会话目录，并把它的 ID 写入墓碑集合。
 2. Host 包装 `subagentCatalog` 的 wire view，在投影发往浏览器前过滤墓碑 ID；热会话、冷会话和缓存读取一致生效。
 3. 当前页面删除成功后，Client 直接更新父会话的投影存储，让“xx 个子智能体”立即下降，不必等下一次投影事件。
+4. 模型通过 `manage_subagent` 删除时，Host 写入同一份墓碑；Client 每 5 秒轮询 `/tombstones` 并过滤投影存储，因此不需要刷新页面也能更新计数。
 
 ## 故障排查
 
@@ -197,6 +213,8 @@ git clone https://github.com/LindenJia/dsh-subagent-manager.git
 | 设置里没有“子智能体管理器” | 确认 `include:subagent-manager` 为 `active`；刷新页面。若刚安装，确认 bundle 已写入 profile，而不是只执行了 `dsh plugin add` |
 | 回话主页没有“xx 个子智能体” | 当前会话没有直接子智能体，或目录投影尚未加载；先派发一次子智能体再刷新 |
 | 回话主页的目录没有归档/删除按钮 | 刷新页面加载新版 Client；旧版目录是 DSH 自带组件，只有打开和层级展开 |
+| 模型看不到 `manage_subagent` | 刷新页面或重载插件，让工具列表更新；即使子智能体能看到该工具，调用也会被拒绝 |
+| `manage_subagent` 返回拒绝 | 只有根会话可调用；目标必须是本会话后代；外部任务、运行中/驻留的子智能体、仍有下级的删除都会被拒绝 |
 | 列表加载失败，提示 `cannot get property "sessions" without inject` | 旧版本缺少 `sessions` 服务声明；更新到当前版本，刷新页面。若仍报错，重载插件或重启 `dsh-web` |
 | 列表一直为空 | 当前 DSH 实例确实还没有子智能体会话；本页管理所有会话派生的子智能体，不是当前会话的聊天记录 |
 | 删除按钮是灰色的 | 子智能体仍在运行，或还有下级子智能体；先归档，或先删除下级 |
@@ -212,7 +230,7 @@ git clone https://github.com/LindenJia/dsh-subagent-manager.git
 
 | 文件 | 作用 |
 |---|---|
-| `index.js` | Host 半部：状态、归档、删除、批量删除、并发上限、墓碑过滤 |
+| `index.js` | Host 半部：状态、归档、删除、批量删除、并发上限、墓碑过滤、`manage_subagent` 工具 |
 | `client.js` | Client 半部：设置页、回话主页目录、分页、选择、确认弹窗、投影存储更新 |
 | `cordis.patch.yml` | bundle 安装行 |
 | `locale/*.json` | 插件管理器中显示的标题与描述 |
@@ -232,6 +250,7 @@ npm pack --dry-run --json
 - 删除后的父会话目录投影过滤、失效目录项自动补墓碑、墓碑文件持久化，通过模拟 `subagentCatalog` 投影测试。
 - 会话目录解析用本机 120 个真实子智能体会话逐一比对，全部命中。
 - 回话主页目录按父会话过滤的 `/state?parent=` 查询通过模拟测试：根会话只返回直接子会话，嵌套会话只返回自己的下级。
+- 真实端到端验证：创建一个一次性子智能体，依次调用 `manage_subagent` 的 `archive`、`unarchive`、`delete`，最终会话目录删除且墓碑写入。
 - `settings.section` 与接替后的 `subagent-catalog` 在运行中的 Web 客户端均为 `active`。
 - 页面最终视觉、暗色主题和窄屏布局仍需在浏览器中刷新后确认。
 

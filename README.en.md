@@ -14,7 +14,7 @@
   &nbsp;
   <img src="https://img.shields.io/badge/DSH-0.2.1--rc.5-2f63d8?style=flat-square" alt="DSH">
   &nbsp;
-  <img src="https://img.shields.io/badge/version-1.1.0-2f63d8?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.2.0-2f63d8?style=flat-square" alt="Version">
 </p>
 
 <p align="center">
@@ -51,6 +51,7 @@ DSH's built-in subagent catalog is scoped to the current session. When subagents
 | Concurrency limit | Reads and writes `subagent.maxActiveSubagents` (1–256), the same setting DSH uses for delegation capacity |
 | Parent count sync | After a delete, the “N subagents” count in the parent conversation decreases instead of keeping the deleted child |
 | Manage from the conversation | Click the “N subagents” trigger in the conversation header to open the same catalog and archive or delete each direct child |
+| Root-conversation tool | A root conversation can call `manage_subagent` to archive, unarchive, or delete its own descendants; subagent callers, external tasks, and arbitrary session ids are rejected |
 
 ## UI and actions
 
@@ -92,6 +93,20 @@ The Settings page is not the only entry point. The “N subagents” trigger bes
 - a successful delete immediately reduces the parent count.
 
 This entry shares the same Host routes, permission rules, and tombstone cleanup as the Settings page.
+
+### Model entry
+
+The root conversation can also manage subagents through a tool, without opening Settings:
+
+```text
+manage_subagent(agent_id="...", action="archive")
+manage_subagent(agent_id="...", action="unarchive")
+manage_subagent(agent_id="...", action="delete")
+```
+
+Use `list_agents` to obtain `agent_id`. The tool accepts only a **root conversation**, and the target must be a registered descendant of that conversation; subagent callers, external tasks, and arbitrary session ids are rejected. `delete` still requires the target to be non-resident and childless; otherwise archive it or delete its descendants first.
+
+A tool delete records a tombstone. The Client polls `/tombstones` every 5 seconds and removes those ids from the current projection store, so the conversation-header count drops within a few seconds without a page refresh.
 
 ## Install
 
@@ -174,14 +189,14 @@ The concurrency limit is not a plugin-owned field. It is DSH's existing `subagen
 - **The parent count is a projection filter, not a log rewrite.** DSH's parent log is append-only, so deleting a child session does not rewrite the historical discovery entry. The plugin uses a durable tombstone to filter the client-facing `subagentCatalog` projection and updates the current page's projection store immediately. The raw parent log still contains the discovery event.
 - **Disabling or uninstalling the plugin makes the raw catalog entries visible again.** The tombstone filter is active only while the plugin runs; this preserves DSH's log replay and integrity constraints.
 - **Stale-entry scanning uses materialized projections.** At startup the plugin scans parent catalog projections and tombstones entries whose child session no longer exists. A very cold parent that has never been opened may fall outside that scan; reloading the plugin or restarting the Host scans again.
-- **No model tool and no outbound network calls.** Delete and archive are user-only operations; the plugin registers no agent-callable tool and does not upload sessions or read credentials. HTTP routes reuse DSH's Connection authentication and fall back to `ctx.webServer` when needed.
+- **The model tool only manages descendants of its own root conversation.** `manage_subagent` accepts only a root conversation, and the target must appear in that conversation's `listDescendants` catalog; subagent callers, arbitrary session ids, and external tasks are rejected. `delete` still requires a non-resident, childless target. The tool does not upload sessions, read credentials, or make outbound network calls; HTTP routes reuse DSH's Connection authentication and fall back to `ctx.webServer` when needed.
 
 ## How it works
 
 | Part | Responsibility |
 |---|---|
-| Host `index.js` | Reads `sessionQuery` / `sessionPersistence` / `workspaceRegistry` / `settings`; serves `/api/dsh-subagent-manager/state` and `/action`; performs archive, delete, and limit writes |
-| Client `client.js` | Registers the `settings.section` page and shadows `subagent-catalog` in `conversation.session.header.actions` at a lower priority; owns pagination, search, selection, the conversation-header catalog, confirmation dialogs, and the projection-store update; uses only DSH theme tokens and imports no other Client package |
+| Host `index.js` | Reads `sessionQuery` / `sessionPersistence` / `workspaceRegistry` / `settings`; registers the `manage_subagent` tool; serves `/state`, `/action`, and `/tombstones`; performs archive, delete, and limit writes |
+| Client `client.js` | Registers the `settings.section` page and shadows `subagent-catalog` in `conversation.session.header.actions` at a lower priority; owns pagination, search, selection, the conversation-header catalog, confirmation dialogs, the projection-store update, and tombstone polling; uses only DSH theme tokens and imports no other Client package |
 | State file | `deleted-sessions.json` stores deleted subagent IDs for projection filtering and stale-entry cleanup |
 
 Parent-count synchronization has three layers:
@@ -189,6 +204,7 @@ Parent-count synchronization has three layers:
 1. The Host removes the child session directory and records its ID in the tombstone set.
 2. The Host wraps the `subagentCatalog` wire view and filters tombstoned IDs before projections reach the browser, for live sessions, cold sessions, and cached reads alike.
 3. After a successful delete, the Client updates the parent's projection store directly, so the “N subagents” count drops immediately instead of waiting for the next projection event.
+4. When the model deletes through `manage_subagent`, the Host writes the same tombstone; the Client polls `/tombstones` every 5 seconds and filters the projection store, so the count updates without a refresh.
 
 ## Troubleshooting
 
@@ -197,6 +213,8 @@ Parent-count synchronization has three layers:
 | No “Subagent Manager” entry in Settings | Confirm `include:subagent-manager` is `active`; refresh. If it was just installed, confirm the bundle was written to the profile, not only installed with `dsh plugin add` |
 | No “N subagents” trigger in the conversation header | The current session has no direct children, or the catalog projection has not loaded yet; delegate a subagent, then refresh |
 | The header catalog has no archive/delete buttons | Refresh to load the new Client. The old catalog is the shipped DSH component with open and expand only |
+| The model cannot see `manage_subagent` | Refresh the page or reload the plugin so the tool list updates. Even when a subagent sees the tool, its call is rejected |
+| `manage_subagent` returns a refusal | Only a root conversation can call it; the target must be a descendant; external tasks, running/resident subagents, and deletes with children are refused |
 | List fails with `cannot get property "sessions" without inject` | An old build is missing the `sessions` service declaration. Update to the current version and refresh; reload the plugin or restart `dsh-web` if it persists |
 | The list is always empty | This DSH instance has no subagent sessions yet. The page manages subagents from all sessions, not the current conversation's chat history |
 | The Delete button is grey | The subagent is running, or it still has children. Archive it, or delete its children first |
@@ -212,7 +230,7 @@ There is no build step. Main files:
 
 | File | Purpose |
 |---|---|
-| `index.js` | Host half: state, archive, delete, batch delete, concurrency limit, tombstone filtering |
+| `index.js` | Host half: state, archive, delete, batch delete, concurrency limit, tombstone filtering, `manage_subagent` tool |
 | `client.js` | Client half: settings page, conversation-header catalog, pagination, selection, dialogs, projection-store update |
 | `cordis.patch.yml` | Bundle installation row |
 | `locale/*.json` | Plugin Manager title and description |
@@ -232,6 +250,7 @@ Verification performed:
 - Parent catalog projection filtering after deletion, automatic tombstoning of stale entries, and tombstone-file persistence, using a mocked `subagentCatalog` projection.
 - Session-directory resolution matched all 120 real subagent sessions on the development machine.
 - Parent-scoped `/state?parent=` queries verified that a root session returns only direct children and a nested session returns only its own descendants.
+- Real end-to-end check: a disposable subagent was created, then `manage_subagent` ran `archive`, `unarchive`, and `delete`; the session directory was removed and the tombstone persisted.
 - Both `settings.section` and the shadowed `subagent-catalog` are registered as `active` in the running Web client.
 - Final visuals, dark theme, and narrow-screen layout still need a browser refresh for confirmation.
 

@@ -29,6 +29,7 @@ export const inject = [
   'sessions',
   'sessionProjections',
   'settings',
+  'tools',
 ]
 
 /** One exact Fetch prefix claimed by this bundle. */
@@ -916,6 +917,136 @@ export function apply(ctx, config = {}) {
     throw new ActionError('INVALID', `unknown action: ${String(action)}`)
   }
 
+
+  /**
+   * Model-facing management entry for a root conversation. It exposes only
+   * archive/unarchive/delete over this conversation's registered descendants;
+   * arbitrary session ids and subagent callers are rejected.
+   *
+   * @returns {object} raw tool definition for `ctx.tools.register`.
+   */
+  function createManageToolDefinition() {
+    return {
+      name: 'manage_subagent',
+      description:
+        'Archive, unarchive, or permanently delete one subagent under this root conversation. '
+        + 'archive stops its current run and hides it; unarchive restores it; '
+        + 'delete removes its session directory and cannot be undone. '
+        + 'delete refuses a running or resident subagent and one that still has children; '
+        + 'delete its descendants first. Use list_agents to find the agent_id. '
+        + 'Only a root conversation can call this; calls from a subagent are rejected.',
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          agent_id: {
+            type: 'string',
+            description: 'Durable id of a subagent under this root conversation (see list_agents).',
+          },
+          action: {
+            type: 'string',
+            enum: ['archive', 'unarchive', 'delete'],
+            description: 'archive, unarchive, or delete.',
+          },
+        },
+        required: ['agent_id', 'action'],
+      },
+      output: {
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            ok: { type: 'boolean' },
+            action: { type: 'string', enum: ['archive', 'unarchive', 'delete'] },
+            agentId: { type: 'string' },
+            parentId: { type: 'string' },
+            deleted: { type: 'boolean' },
+          },
+          required: ['ok', 'action', 'agentId', 'parentId', 'deleted'],
+        },
+        render: (_args, value) => {
+          const verb =
+            value?.action === 'archive'
+              ? 'archived'
+              : value?.action === 'unarchive'
+                ? 'unarchived'
+                : 'deleted'
+          return [{ type: 'text', text: `${verb} subagent ${String(value?.agentId || '')}` }]
+        },
+      },
+      async execute(args, exec) {
+        const caller = exec.agent
+        if (!caller) throw new Error('manage_subagent requires a calling root conversation')
+        const header = ctx.sessions.get(caller.id)?.header
+        if (!header) throw new Error('manage_subagent requires a live root conversation')
+        const callerIsSubagent =
+          Boolean(header.parentSession)
+          && (header.origin === 'subagent' || integerOr(header.delegationDepth, 0) > 0)
+        if (callerIsSubagent) {
+          throw new Error('manage_subagent is only available to a root conversation, not a subagent')
+        }
+        const agentId = args?.agent_id
+        const action = args?.action
+        if (typeof agentId !== 'string' || agentId.length === 0 || agentId.length > 200) {
+          throw new Error('agent_id must be a non-empty string')
+        }
+        if (action !== 'archive' && action !== 'unarchive' && action !== 'delete') {
+          throw new Error('action must be archive, unarchive, or delete')
+        }
+        let target
+        try {
+          const rows = await ctx.subagents.listDescendants(caller.id, exec.signal)
+          target = rows.find((row) => row.kind === 'child' && row.id === agentId)
+        } catch (error) {
+          throw new Error(`could not read this conversation's subagent catalog: ${errorText(error)}`)
+        }
+        if (!target) {
+          throw new Error(`subagent ${agentId} is not a registered descendant of this conversation`)
+        }
+        if (target.mode === 'external') {
+          throw new Error(`subagent ${agentId} is an external task and cannot be archived or deleted`)
+        }
+        if (action === 'delete' && (ctx.agents.get(agentId) || ctx.sessions.get(agentId))) {
+          throw new Error(`subagent ${agentId} is still running or resident; archive it first, then delete`)
+        }
+        try {
+          if (action === 'archive') {
+            await archive(agentId)
+            return { ok: true, action, agentId, parentId: target.parentId, deleted: false }
+          }
+          if (action === 'unarchive') {
+            await unarchive(agentId)
+            return { ok: true, action, agentId, parentId: target.parentId, deleted: false }
+          }
+          const result = await remove(agentId)
+          return {
+            ok: true,
+            action,
+            agentId,
+            parentId: result.parentId || target.parentId,
+            deleted: Boolean(result.removed),
+          }
+        } catch (error) {
+          if (error instanceof ActionError) {
+            throw new Error(
+              `cannot ${action} subagent ${agentId}: ${error.code}${error.detail ? ` (${error.detail})` : ''}`,
+            )
+          }
+          throw error
+        }
+      },
+    }
+  }
+
+  async function handleTombstones() {
+    try {
+      await ensureReconciled()
+      return jsonResponse(200, { ok: true, deleted: [...deleted] })
+    } catch (error) {
+      return errorResponse(error)
+    }
+  }
+
   /** @param {Request} request - Fetch request. */
   async function handleState(request) {
     try {
@@ -964,6 +1095,11 @@ export function apply(ctx, config = {}) {
         sendNode(res, 200, state)
         return
       }
+      if (url.pathname === `${BASE}/tombstones` && req.method === 'GET') {
+        await ensureReconciled()
+        sendNode(res, 200, { ok: true, deleted: [...deleted] })
+        return
+      }
       if (url.pathname === `${BASE}/action` && req.method === 'POST') {
         const chunks = []
         for await (const chunk of req) chunks.push(chunk)
@@ -987,6 +1123,8 @@ export function apply(ctx, config = {}) {
     }
   }
 
+  ctx.effect(() => ctx.tools.register(createManageToolDefinition()))
+
   ctx.effect(() => {
     const connection = service('connection')
     if (connection?.fetch?.register) {
@@ -1002,8 +1140,14 @@ export function apply(ctx, config = {}) {
         requestBody: 'buffered',
         fetch: handleAction,
       })
+      const offTombstones = connection.fetch.register({
+        path: `${BASE}/tombstones`,
+        methods: ['GET'],
+        requestBody: 'buffered',
+        fetch: handleTombstones,
+      })
       return () => {
-        for (const disposer of [offState, offAction]) {
+        for (const disposer of [offState, offAction, offTombstones]) {
           try {
             const result = disposer()
             if (result && typeof result.then === 'function') result.catch(() => {})
