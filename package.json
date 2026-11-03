@@ -1,6 +1,6 @@
 {
   "name": "@local/dsh-subagent-manager",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "description": "DeepSeek Harness Web plugin to list, paginate, archive, permanently delete, and batch-delete subagents, set the concurrent limit, and expose a root-only management tool.",
   "type": "module",

@@ -14,7 +14,7 @@
   &nbsp;
   <img src="https://img.shields.io/badge/DSH-0.2.1--rc.5-2f63d8?style=flat-square" alt="DSH">
   &nbsp;
-  <img src="https://img.shields.io/badge/version-1.2.0-2f63d8?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.2.1-2f63d8?style=flat-square" alt="Version">
 </p>
 
 <p align="center">
@@ -50,7 +50,7 @@ DSH 自带的子智能体目录聚焦当前会话；当子智能体分散在多�
 | 批量删除 | 每行复选框、全选本页、已选计数；一次最多 100 个，按委派深度从深到浅执行 |
 | 并发上限 | 读写 `subagent.maxActiveSubagents`（1–256），与 DSH 自带子智能体并发上限是同一项设置 |
 | 父会话计数同步 | 删除后回话主页的“xx 个子智能体”会相应减少，不留下已删除子智能体的计数 |
-| 回话主页直接管理 | 点击回话主页头部的“xx 个子智能体”展开目录，直接归档或删除每个直接子智能体 |
+| 回话主页直接管理 | 点击回话主页头部的“xx 个子智能体”展开目录，直接归档或删除每个直接子智能体；保留运行时长、token 用量和状态灯（运行中转圈、完成绿灯、未运行灰灯） |
 | 根会话模型工具 | 根会话可调用 `manage_subagent` 归档、取消归档或删除自己的后代；子智能体、外部任务和任意会话 id 会被拒绝 |
 
 ## 界面与操作
@@ -90,6 +90,8 @@ DSH 自带的子智能体目录聚焦当前会话；当子智能体分散在多�
 - 行内“删除”会先弹出确认；
 - 运行中或仍有下级的子智能体，删除按钮置灰；
 - 外部任务只显示标签，不能归档或删除；
+- 每行保留 `subagentTiming` 运行时长和 `tokenUsage` 指标；
+- 运行中显示转圈，最近一轮正常完成显示绿灯，未运行显示灰灯；
 - 删除成功后，父会话的计数立即减少。
 
 这个入口和设置页共用同一套 Host 路由、权限规则和墓碑清理，不会出现两套行为。
@@ -251,6 +253,7 @@ npm pack --dry-run --json
 - 会话目录解析用本机 120 个真实子智能体会话逐一比对，全部命中。
 - 回话主页目录按父会话过滤的 `/state?parent=` 查询通过模拟测试：根会话只返回直接子会话，嵌套会话只返回自己的下级。
 - 真实端到端验证：创建一个一次性子智能体，依次调用 `manage_subagent` 的 `archive`、`unarchive`、`delete`，最终会话目录删除且墓碑写入。
+- 回话主页目录用带 `subagentTiming` / `tokenUsage` 的浅层渲染验证，确认运行时长、token 指标与运行/完成/未运行三种状态标记都存在。
 - `settings.section` 与接替后的 `subagent-catalog` 在运行中的 Web 客户端均为 `active`。
 - 页面最终视觉、暗色主题和窄屏布局仍需在浏览器中刷新后确认。
 

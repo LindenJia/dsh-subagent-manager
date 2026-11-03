@@ -14,7 +14,7 @@
   &nbsp;
   <img src="https://img.shields.io/badge/DSH-0.2.1--rc.5-2f63d8?style=flat-square" alt="DSH">
   &nbsp;
-  <img src="https://img.shields.io/badge/version-1.2.0-2f63d8?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.2.1-2f63d8?style=flat-square" alt="Version">
 </p>
 
 <p align="center">
@@ -50,7 +50,7 @@ DSH's built-in subagent catalog is scoped to the current session. When subagents
 | Batch delete | Per-row checkboxes, select-all on the current page, selection count; up to 100 at a time, deepest first |
 | Concurrency limit | Reads and writes `subagent.maxActiveSubagents` (1–256), the same setting DSH uses for delegation capacity |
 | Parent count sync | After a delete, the “N subagents” count in the parent conversation decreases instead of keeping the deleted child |
-| Manage from the conversation | Click the “N subagents” trigger in the conversation header to open the same catalog and archive or delete each direct child |
+| Manage from the conversation | Click the “N subagents” trigger in the conversation header to open the catalog and archive or delete each direct child; duration, token usage, and the running/completed/idle indicator are preserved |
 | Root-conversation tool | A root conversation can call `manage_subagent` to archive, unarchive, or delete its own descendants; subagent callers, external tasks, and arbitrary session ids are rejected |
 
 ## UI and actions
@@ -90,6 +90,8 @@ The Settings page is not the only entry point. The “N subagents” trigger bes
 - **Delete** asks for confirmation first;
 - delete is disabled while the child is running or still has children;
 - external tasks show a label and cannot be archived or deleted;
+- each row keeps the `subagentTiming` duration and `tokenUsage` metrics;
+- a running child shows a spinner, a normally completed last turn shows a green dot, and a never-run child shows a grey dot;
 - a successful delete immediately reduces the parent count.
 
 This entry shares the same Host routes, permission rules, and tombstone cleanup as the Settings page.
@@ -251,6 +253,7 @@ Verification performed:
 - Session-directory resolution matched all 120 real subagent sessions on the development machine.
 - Parent-scoped `/state?parent=` queries verified that a root session returns only direct children and a nested session returns only its own descendants.
 - Real end-to-end check: a disposable subagent was created, then `manage_subagent` ran `archive`, `unarchive`, and `delete`; the session directory was removed and the tombstone persisted.
+- A shallow render of the conversation-header catalog with `subagentTiming` / `tokenUsage` verified the duration, token metric, and running/completed/idle indicators.
 - Both `settings.section` and the shadowed `subagent-catalog` are registered as `active` in the running Web client.
 - Final visuals, dark theme, and narrow-screen layout still need a browser refresh for confirmation.
 

@@ -29,6 +29,14 @@ window.__ModuleLoader__.load({
       'list.total': '{count} total',
       'list.showing': 'Showing the newest {shown}',
       'list.more': 'Show more',
+      'catalog.completed': 'Completed',
+      'catalog.inactive': 'Not run',
+      'catalog.durationSeconds': '{seconds}s',
+      'catalog.durationMinutes': '{minutes}m {seconds}s',
+      'catalog.durationHours': '{hours}h {minutes}m',
+      'catalog.durationDays': '{days}d {hours}h',
+      'catalog.durationTitle': 'Active time: {duration}',
+      'catalog.tokens': '{value} tokens',
       'catalog.trigger.one': '1 subagent',
       'catalog.trigger.other': '{count} subagents',
       'catalog.running.one': '1 running',
@@ -132,6 +140,14 @@ window.__ModuleLoader__.load({
       'list.total': '共 {count} 个',
       'list.showing': '仅显示最近 {shown} 个',
       'list.more': '显示更多',
+      'catalog.completed': '已完成',
+      'catalog.inactive': '未运行',
+      'catalog.durationSeconds': '{seconds} 秒',
+      'catalog.durationMinutes': '{minutes} 分 {seconds} 秒',
+      'catalog.durationHours': '{hours} 小时 {minutes} 分',
+      'catalog.durationDays': '{days} 天 {hours} 小时',
+      'catalog.durationTitle': '运行时长：{duration}',
+      'catalog.tokens': '{value} tokens',
       'catalog.trigger.one': '1 个子智能体',
       'catalog.trigger.other': '{count} 个子智能体',
       'catalog.running.one': '1 个运行中',
@@ -258,6 +274,13 @@ window.__ModuleLoader__.load({
       '.dsm-cat-count{font-weight:500}',
       '.dsm-cat-running{color:var(--dsw-alias-state-success-primary)}',
       '.dsm-cat-chevron{font-size:9px;color:var(--dsw-alias-label-secondary)}',
+      '.dsm-cat-status{display:inline-flex;align-items:center;justify-content:center;flex:none;width:10px;height:10px}',
+      '.dsm-cat-status .dsm-dot{margin-top:0;width:8px;height:8px}',
+      '.dsm-cat-spinner{box-sizing:border-box;width:10px;height:10px;border:2px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 25%, transparent);border-top-color:var(--dsw-alias-brand-primary);border-radius:50%;animation:dsm-cat-spin .8s linear infinite}',
+      '@keyframes dsm-cat-spin{to{transform:rotate(360deg)}}',
+      '.dsm-dot[data-state=done]{background:var(--dsw-alias-state-success-primary)}',
+      '.dsm-cat-metrics{display:flex;align-items:center;gap:6px;flex:none;max-width:130px;overflow:hidden;color:var(--dsw-alias-label-secondary);font-size:11px;line-height:16px;white-space:nowrap}',
+      '.dsm-cat-metric{overflow:hidden;text-overflow:ellipsis}',
       '.dsm-cat-menu{position:fixed;z-index:950;display:flex;flex-direction:column;box-sizing:border-box;overflow:auto;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-overlay);padding:8px;box-shadow:0 18px 50px color-mix(in srgb, var(--dsw-alias-bg-base) 65%, transparent)}',
       '.dsm-cat-head{display:flex;align-items:center;gap:8px;padding:4px 6px 8px;border-bottom:1px solid var(--dsw-alias-border-l1);margin-bottom:4px}',
       '.dsm-cat-head strong{font-size:13px;font-weight:600;color:var(--dsw-alias-label-primary)}',
@@ -309,7 +332,7 @@ window.__ModuleLoader__.load({
       '.dsm-modal-warning{margin:12px 0 0;border-left:2px solid var(--dsw-alias-state-warn-primary);padding-left:10px;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}',
       '.dsm-modal-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:20px}',
       '.dsm-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}',
-      '@media(max-width:640px){.dsm-row{flex-wrap:wrap}.dsm-row-actions{margin-left:18px}.dsm-search{max-width:none}.dsm-page-size{display:none}}',
+      '@media(max-width:640px){.dsm-row{flex-wrap:wrap}.dsm-row-actions{margin-left:18px}.dsm-search{max-width:none}.dsm-page-size{display:none}.dsm-cat-row{flex-wrap:wrap}.dsm-cat-metrics{order:3;max-width:none;margin-left:18px}.dsm-cat-actions{margin-left:auto}}',
     ].join('')
 
     /**
@@ -406,6 +429,70 @@ window.__ModuleLoader__.load({
     }
 
     /**
+     * @param {number} value - token count.
+     * @returns {string} compact token count.
+     */
+    function formatTokenCount(value) {
+      if (!Number.isFinite(value)) return ''
+      if (value < 1000) return String(Math.round(value))
+      if (value < 1000000) return `${Math.round((value / 1000) * 10) / 10}k`
+      return `${Math.round((value / 1000000) * 10) / 10}M`
+    }
+
+    /**
+     * Sum the four disjoint provider-usage buckets the catalog shows.
+     *
+     * @param {object | undefined} usage - token usage projection.
+     * @returns {number | undefined} total tokens when the projection carries it.
+     */
+    function subagentTokenTotal(usage) {
+      if (!usage || typeof usage !== 'object') return undefined
+      const values = [usage.uncachedInputTokens, usage.outputTokens, usage.cacheReadTokens, usage.cacheWriteTokens]
+      if (!values.some((value) => Number.isFinite(value))) return undefined
+      return values.reduce((sum, value) => sum + (Number.isFinite(value) ? value : 0), 0)
+    }
+
+    /**
+     * Durable active-turn duration, mirroring the shipped catalog's timing fold.
+     *
+     * @param {object | undefined} summary - session summary with projection values.
+     * @param {boolean} running - whether the child is currently running.
+     * @param {number} now - current epoch milliseconds for a live interval.
+     * @returns {number | undefined} elapsed milliseconds.
+     */
+    function subagentDuration(summary, running, now) {
+      const timing = summary?.projectionValues?.subagentTiming
+      if (!timing || !Number.isFinite(timing.settledMs)) return undefined
+      if (timing.active === undefined) return timing.settledMs
+      const since = timing.active.since
+      const through = timing.active.through
+      if (!Number.isFinite(since) || !Number.isFinite(through)) return timing.settledMs
+      const end = running ? now : through
+      return timing.settledMs + Math.max(0, end - since)
+    }
+
+    /**
+     * @param {number} ms - elapsed milliseconds.
+     * @param {(key: string, params?: object) => string} t - translate.
+     * @returns {string} compact duration.
+     */
+    function formatSubagentDuration(ms, t) {
+      const totalSeconds = Math.floor(Math.max(0, ms) / 1000)
+      const days = Math.floor(totalSeconds / 86400)
+      const hours = Math.floor((totalSeconds % 86400) / 3600)
+      const minutes = Math.floor((totalSeconds % 3600) / 60)
+      const seconds = totalSeconds % 60
+      if (days > 0) return fill(t('catalog.durationDays'), { days, hours: String(hours).padStart(2, '0') })
+      if (hours > 0) {
+        return fill(t('catalog.durationHours'), { hours, minutes: String(minutes).padStart(2, '0') })
+      }
+      if (minutes > 0) {
+        return fill(t('catalog.durationMinutes'), { minutes, seconds: String(seconds).padStart(2, '0') })
+      }
+      return fill(t('catalog.durationSeconds'), { seconds })
+    }
+
+    /**
      * Confirm dialog with Escape and focus handling owned by this plugin.
      *
      * @param {{ title: string, body: string, warning?: string, cancel: string, confirm: string, danger?: boolean, onCancel: () => void, onConfirm: () => void }} props - dialog copy and handlers.
@@ -493,12 +580,15 @@ window.__ModuleLoader__.load({
       const [feedback, setFeedback] = React.useState(null)
       const [busy, setBusy] = React.useState('')
       const [confirm, setConfirm] = React.useState(null)
+      const [now, setNow] = React.useState(() => Date.now())
       const rootRef = React.useRef(null)
       const triggerRef = React.useRef(null)
       const menuRef = React.useRef(null)
       const metaRequestRef = React.useRef(0)
       const entries = Array.isArray(catalog) ? catalog : []
       const idsKey = entries.map((entry) => entry.id).join('|')
+      const runningCount = entries.filter((entry) => isRunning(entry)).length
+      const completedCount = entries.filter((entry) => isCompleted(entry)).length
 
       async function loadMeta() {
         const token = ++metaRequestRef.current
@@ -584,13 +674,24 @@ window.__ModuleLoader__.load({
         }
       }, [entries.length, isChild])
 
+      React.useEffect(() => {
+        if (runningCount === 0) return undefined
+        const timer = setInterval(() => setNow(Date.now()), 1000)
+        return () => clearInterval(timer)
+      }, [runningCount])
+
       if (isChild) return null
       if (entries.length === 0) return null
 
       function isRunning(entry) {
         const status = statuses.get(entry.id)
         const summary = summaries[entry.id]
-        return status?.running === true || summary?.running === true || meta[entry.id]?.live === true
+        return status?.running === true || summary?.running === true
+      }
+
+      function isCompleted(entry) {
+        if (entry.mode === 'external' || isRunning(entry)) return false
+        return summaries[entry.id]?.projectionValues?.subagentTiming?.lastTurnCompleted === true
       }
 
       function modeLabel(entry) {
@@ -684,7 +785,6 @@ window.__ModuleLoader__.load({
         if (target) run(target.kind, target.entry)
       }
 
-      const runningCount = entries.filter((entry) => isRunning(entry)).length
       const menu =
         open && anchor
           ? h(
@@ -716,11 +816,12 @@ window.__ModuleLoader__.load({
                 : null,
               entries.map((entry) => {
                 const info = meta[entry.id] || {}
+                const summary = summaries[entry.id]
                 const running = isRunning(entry)
+                const completed = isCompleted(entry)
                 const archived = info.archived === true
                 const external = entry.mode === 'external'
                 const children = info.hasChildren === true || (info.childCount || 0) > 0
-                const dotState = running ? 'running' : archived ? 'archived' : 'idle'
                 const title = titleFor(entry)
                 const deleteDisabled = external || running || children || Boolean(busy)
                 const deleteTitle = external
@@ -730,10 +831,41 @@ window.__ModuleLoader__.load({
                     : children
                       ? t('row.deleteChildren')
                       : t('row.delete')
+                const activityLabel = external
+                  ? undefined
+                  : running
+                    ? t('row.running')
+                    : completed
+                      ? t('catalog.completed')
+                      : t('catalog.inactive')
+                const durationMs = subagentDuration(summary, running, now)
+                const durationText = durationMs === undefined ? undefined : formatSubagentDuration(durationMs, t)
+                const totalTokens = subagentTokenTotal(summary?.projectionValues?.tokenUsage)
+                const tokenText =
+                  totalTokens === undefined
+                    ? undefined
+                    : fill(t('catalog.tokens'), { value: formatTokenCount(totalTokens) })
+                const metrics = []
+                if (durationText !== undefined) {
+                  metrics.push(
+                    h(
+                      'span',
+                      {
+                        className: 'dsm-cat-metric',
+                        title: fill(t('catalog.durationTitle'), { duration: durationText }),
+                      },
+                      durationText,
+                    ),
+                  )
+                }
+                if (tokenText !== undefined) {
+                  metrics.push(h('span', { className: 'dsm-cat-metric', title: tokenText }, tokenText))
+                }
                 const metaParts = external
                   ? []
                   : [
                       modeLabel(entry),
+                      activityLabel,
                       archived ? t('row.archived') : null,
                       children ? fill(t('row.children'), { count: info.childCount || 1 }) : null,
                     ].filter(Boolean)
@@ -749,7 +881,13 @@ window.__ModuleLoader__.load({
                       title: external ? t('catalog.external') : title,
                       onClick: () => openEntry(entry),
                     },
-                    h('span', { className: 'dsm-dot', 'data-state': dotState, 'aria-hidden': 'true' }),
+                    h(
+                      'span',
+                      { className: 'dsm-cat-status', 'aria-hidden': 'true' },
+                      running
+                        ? h('span', { className: 'dsm-cat-spinner' })
+                        : h('span', { className: 'dsm-dot', 'data-state': completed ? 'done' : 'idle' }),
+                    ),
                     h(
                       'span',
                       { className: 'dsm-cat-main' },
@@ -757,6 +895,7 @@ window.__ModuleLoader__.load({
                       metaParts.length > 0 ? h('span', { className: 'dsm-cat-meta' }, metaParts.join(' · ')) : null,
                     ),
                   ),
+                  metrics.length > 0 ? h('span', { className: 'dsm-cat-metrics' }, metrics) : null,
                   external
                     ? h('span', { className: 'dsm-badge' }, t('catalog.external'))
                     : h(
@@ -809,7 +948,13 @@ window.__ModuleLoader__.load({
               title: t('catalog.menuLabel'),
               onClick: () => setOpen((value) => !value),
             },
-            h('span', { className: 'dsm-dot', 'data-state': runningCount > 0 ? 'running' : 'idle', 'aria-hidden': 'true' }),
+            h(
+              'span',
+              { className: 'dsm-cat-status', 'aria-hidden': 'true' },
+              runningCount > 0
+                ? h('span', { className: 'dsm-cat-spinner' })
+                : h('span', { className: 'dsm-dot', 'data-state': completedCount > 0 ? 'done' : 'idle' }),
+            ),
             h('span', { className: 'dsm-cat-count' }, countText(t, 'catalog.trigger', entries.length)),
             runningCount > 0
               ? h('span', { className: 'dsm-cat-running' }, countText(t, 'catalog.running', runningCount))
