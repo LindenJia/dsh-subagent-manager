@@ -675,10 +675,11 @@ window.__ModuleLoader__.load({
       }, [entries.length, isChild])
 
       React.useEffect(() => {
-        if (runningCount === 0) return undefined
+        if (!open || runningCount === 0) return undefined
+        setNow(Date.now())
         const timer = setInterval(() => setNow(Date.now()), 1000)
         return () => clearInterval(timer)
-      }, [runningCount])
+      }, [open, runningCount])
 
       if (isChild) return null
       if (entries.length === 0) return null
