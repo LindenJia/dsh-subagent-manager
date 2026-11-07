@@ -14,7 +14,7 @@
   &nbsp;
   <img src="https://img.shields.io/badge/DSH-0.2.1--rc.5-2f63d8?style=flat-square" alt="DSH">
   &nbsp;
-  <img src="https://img.shields.io/badge/version-1.2.1-2f63d8?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.2.2-2f63d8?style=flat-square" alt="Version">
 </p>
 
 <p align="center">
@@ -50,7 +50,7 @@ DSH's built-in subagent catalog is scoped to the current session. When subagents
 | Batch delete | Per-row checkboxes, select-all on the current page, selection count; up to 100 at a time, deepest first |
 | Concurrency limit | Reads and writes `subagent.maxActiveSubagents` (1–256), the same setting DSH uses for delegation capacity |
 | Parent count sync | After a delete, the “N subagents” count in the parent conversation decreases instead of keeping the deleted child |
-| Manage from the conversation | Click the “N subagents” trigger in the conversation header to open the catalog and archive or delete each direct child; duration, token usage, and the running/completed/idle indicator are preserved |
+| Manage from the conversation | Click the “N subagents” trigger in the conversation header to open the catalog and archive or delete each direct child; counts exclude archived children while the catalog still lists archived rows; duration, token usage, and the running/completed/idle indicator are preserved |
 | Root-conversation tool | A root conversation can call `manage_subagent` to archive, unarchive, or delete its own descendants; subagent callers, external tasks, and arbitrary session ids are rejected |
 
 ## UI and actions
@@ -95,6 +95,8 @@ The Settings page is not the only entry point. The “N subagents” trigger bes
 - a successful delete immediately reduces the parent count.
 
 This entry shares the same Host routes, permission rules, and tombstone cleanup as the Settings page.
+
+**Counting rule:** In the Settings summary, **Active** and **Running** count only non-archived subagents, while **Archived** is reported separately. The conversation-header count also excludes archived children. Archived rows stay visible in the catalog with an archived label, so they can still be unarchived or deleted.
 
 ### Model entry
 

@@ -597,6 +597,7 @@ export function apply(ctx, config = {}) {
       }
     })
     const scoped = parent ? mapped.filter((row) => row.parentId === parent) : mapped
+    const activeScoped = scoped.filter((row) => !row.archived)
     const filtered = scoped.filter((row) => {
       if (status === 'running' && !row.live) return false
       if (status === 'archived' && !row.archived) return false
@@ -620,7 +621,8 @@ export function apply(ctx, config = {}) {
       ok: true,
       total,
       allTotal: scoped.length,
-      running: scoped.filter((row) => row.live).length,
+      activeTotal: activeScoped.length,
+      running: activeScoped.filter((row) => row.live).length,
       archived: scoped.filter((row) => row.archived).length,
       offset: safeOffset,
       limit,

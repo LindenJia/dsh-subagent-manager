@@ -30,6 +30,7 @@ window.__ModuleLoader__.load({
       'list.showing': 'Showing the newest {shown}',
       'list.more': 'Show more',
       'catalog.completed': 'Completed',
+      'summary.active': 'Active {count}',
       'catalog.inactive': 'Not run',
       'catalog.durationSeconds': '{seconds}s',
       'catalog.durationMinutes': '{minutes}m {seconds}s',
@@ -37,11 +38,13 @@ window.__ModuleLoader__.load({
       'catalog.durationDays': '{days}d {hours}h',
       'catalog.durationTitle': 'Active time: {duration}',
       'catalog.tokens': '{value} tokens',
-      'catalog.trigger.one': '1 subagent',
-      'catalog.trigger.other': '{count} subagents',
+      'catalog.trigger.one': '1 active subagent',
+      'catalog.trigger.other': '{count} active subagents',
       'catalog.running.one': '1 running',
       'catalog.running.other': '{count} running',
-      'catalog.trigger': '{count} subagents',
+      'catalog.trigger': '{count} active subagents',
+      'catalog.activeCount': '{count} active',
+      'catalog.archivedCount': '{count} archived',
       'catalog.running': '{count} running',
       'catalog.title': 'Subagents',
       'catalog.refresh': 'Refresh',
@@ -141,6 +144,7 @@ window.__ModuleLoader__.load({
       'list.showing': '仅显示最近 {shown} 个',
       'list.more': '显示更多',
       'catalog.completed': '已完成',
+      'summary.active': '活跃 {count}',
       'catalog.inactive': '未运行',
       'catalog.durationSeconds': '{seconds} 秒',
       'catalog.durationMinutes': '{minutes} 分 {seconds} 秒',
@@ -148,11 +152,13 @@ window.__ModuleLoader__.load({
       'catalog.durationDays': '{days} 天 {hours} 小时',
       'catalog.durationTitle': '运行时长：{duration}',
       'catalog.tokens': '{value} tokens',
-      'catalog.trigger.one': '1 个子智能体',
-      'catalog.trigger.other': '{count} 个子智能体',
+      'catalog.trigger.one': '1 个活跃子智能体',
+      'catalog.trigger.other': '{count} 个活跃子智能体',
       'catalog.running.one': '1 个运行中',
       'catalog.running.other': '{count} 个运行中',
-      'catalog.trigger': '{count} 个子智能体',
+      'catalog.trigger': '{count} 个活跃子智能体',
+      'catalog.activeCount': '{count} 个活跃',
+      'catalog.archivedCount': '{count} 个已归档',
       'catalog.running': '{count} 个运行中',
       'catalog.title': '子智能体',
       'catalog.refresh': '刷新',
@@ -273,6 +279,7 @@ window.__ModuleLoader__.load({
       '.dsm-cat-trigger:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}',
       '.dsm-cat-count{font-weight:500}',
       '.dsm-cat-running{color:var(--dsw-alias-state-success-primary)}',
+      '.dsm-cat-archived{color:var(--dsw-alias-state-warn-primary);font-size:11px}',
       '.dsm-cat-chevron{font-size:9px;color:var(--dsw-alias-label-secondary)}',
       '.dsm-cat-status{display:inline-flex;align-items:center;justify-content:center;flex:none;width:10px;height:10px}',
       '.dsm-cat-status .dsm-dot{margin-top:0;width:8px;height:8px}',
@@ -587,8 +594,10 @@ window.__ModuleLoader__.load({
       const metaRequestRef = React.useRef(0)
       const entries = Array.isArray(catalog) ? catalog : []
       const idsKey = entries.map((entry) => entry.id).join('|')
-      const runningCount = entries.filter((entry) => isRunning(entry)).length
-      const completedCount = entries.filter((entry) => isCompleted(entry)).length
+      const activeEntries = entries.filter((entry) => meta[entry.id]?.archived !== true)
+      const archivedCount = entries.length - activeEntries.length
+      const runningCount = activeEntries.filter((entry) => isRunning(entry)).length
+      const completedCount = activeEntries.filter((entry) => isCompleted(entry)).length
 
       async function loadMeta() {
         const token = ++metaRequestRef.current
@@ -621,11 +630,16 @@ window.__ModuleLoader__.load({
       }
 
       React.useEffect(() => {
+        if (isChild || entries.length === 0) return
+        loadMeta()
+      }, [sessionId, idsKey, isChild])
+
+      React.useEffect(() => {
         if (!open) return undefined
         loadMeta()
         const timer = setInterval(loadMeta, 5000)
         return () => clearInterval(timer)
-      }, [open, idsKey])
+      }, [open])
 
       React.useEffect(() => {
         if (!open) {
@@ -801,7 +815,18 @@ window.__ModuleLoader__.load({
                 'div',
                 { className: 'dsm-cat-head' },
                 h('strong', null, t('catalog.title')),
-                h('span', { className: 'dsm-cat-head-count' }, String(entries.length)),
+                h(
+                  'span',
+                  { className: 'dsm-cat-head-count' },
+                  fill(t('catalog.activeCount'), { count: activeEntries.length }),
+                ),
+                archivedCount > 0
+                  ? h(
+                      'span',
+                      { className: 'dsm-cat-head-count dsm-cat-archived' },
+                      fill(t('catalog.archivedCount'), { count: archivedCount }),
+                    )
+                  : null,
                 h(
                   'button',
                   { type: 'button', className: 'dsm-btn', disabled: loading, onClick: loadMeta },
@@ -956,9 +981,16 @@ window.__ModuleLoader__.load({
                 ? h('span', { className: 'dsm-cat-spinner' })
                 : h('span', { className: 'dsm-dot', 'data-state': completedCount > 0 ? 'done' : 'idle' }),
             ),
-            h('span', { className: 'dsm-cat-count' }, countText(t, 'catalog.trigger', entries.length)),
+            h('span', { className: 'dsm-cat-count' }, countText(t, 'catalog.trigger', activeEntries.length)),
             runningCount > 0
               ? h('span', { className: 'dsm-cat-running' }, countText(t, 'catalog.running', runningCount))
+              : null,
+            archivedCount > 0
+              ? h(
+                  'span',
+                  { className: 'dsm-cat-archived' },
+                  fill(t('catalog.archivedCount'), { count: archivedCount }),
+                )
               : null,
             h('span', { className: 'dsm-cat-chevron', 'aria-hidden': 'true' }, '▾'),
           ),
@@ -1259,7 +1291,8 @@ window.__ModuleLoader__.load({
       }
 
       const rows = Array.isArray(data?.subagents) ? data.subagents : []
-      const allTotal = data ? (typeof data.allTotal === 'number' ? data.allTotal : data.total) : 0
+      const activeTotal = data ? (typeof data.activeTotal === 'number' ? data.activeTotal : data.total) : 0
+      const archivedTotal = data?.archived || 0
       const filteredTotal = data ? data.total : 0
       const pageCount = Math.max(1, data?.pageCount || 1)
       const currentPage = data?.page ?? page
@@ -1272,9 +1305,9 @@ window.__ModuleLoader__.load({
         ? h(
             'div',
             { className: 'dsm-summary' },
-            h('span', null, fill(t('summary.total'), { count: allTotal })),
+            h('span', null, fill(t('summary.active'), { count: activeTotal })),
             h('span', null, fill(t('summary.running'), { count: data.running })),
-            h('span', null, fill(t('summary.archived'), { count: data.archived })),
+            h('span', null, fill(t('summary.archived'), { count: archivedTotal })),
             filtering ? h('span', null, fill(t('list.filtered'), { count: filteredTotal })) : null,
           )
         : null
@@ -1290,7 +1323,7 @@ window.__ModuleLoader__.load({
           snapshot.error ? h('span', null, snapshot.error) : null,
           h('button', { type: 'button', className: 'dsm-btn', onClick: () => reload(true) }, t('list.refresh')),
         )
-      } else if (allTotal === 0) {
+      } else if (activeTotal === 0 && archivedTotal === 0) {
         listBody = h('div', { className: 'dsm-empty' }, h('span', null, t('list.empty')))
       } else if (rows.length === 0) {
         listBody = h('div', { className: 'dsm-empty' }, h('span', null, t('list.emptyFiltered')))
@@ -1400,7 +1433,7 @@ window.__ModuleLoader__.load({
           : null,
       )
 
-      const pager = data && allTotal > 0
+      const pager = data && filteredTotal > 0
         ? h(
             'div',
             { className: 'dsm-pager' },
